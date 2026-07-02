@@ -36,7 +36,6 @@
         <peripheral name="SCI5.CM33" group="SCI" security="s"/>
         <peripheral name="SCI9.CM33" group="SCI" security="s"/>
         <peripheral name="DMA_DMAC0.CM33" group="DMA_DMAC" security="s"/>
-        <peripheral name="DMA_DMAC2.CM33" group="DMA_DMAC" security="s"/>
         <peripheral name="DMA_DMAC4.CM33" group="DMA_DMAC" security="s"/>
         <peripheral name="ICU.CM33">
             <slot name="IRQ0.CM33" secure="true"/>
@@ -54,7 +53,6 @@
             <slot name="IRQ12.CM33" secure="true"/>
             <slot name="IRQ13.CM33" secure="true"/>
             <slot name="IRQ14.CM33" secure="true"/>
-            <slot name="IRQ15.CM33" secure="true"/>
         </peripheral>
     </partition>
 </azone>

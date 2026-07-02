@@ -22,10 +22,6 @@ void hal_entry(void)
     /* ========== 主循环 ========== */
     while (1)
     {
-        /* LoRa DMAC 传满 256 字节后复位 */
-        if (lora_rx_complete)
-            LORA_DMAC_Reset();
-
         /* GPS 数据解析（NMEA 协议） */
         if (gps_rx_complete)
         {

@@ -178,15 +178,6 @@ void DMAC_Init(void)
     err = g_transfer_on_dmac.enable(&g_transfer0_ctrl);
     assert(FSP_SUCCESS == err);
 
-    /* --- LoRa: DMAC2, SCI2 RXI --- */
-    set_transfer_length(&g_transfer2_cfg, LORA_RX_BUF_SIZE);
-    set_transfer_dst_src_address(&g_transfer2_cfg,
-            (const volatile uint8_t *)&R_SCI2->RDR, (const volatile uint8_t *)lora_rx_buf);
-    err = g_transfer_on_dmac.open(&g_transfer2_ctrl, &g_transfer2_cfg);
-    assert(FSP_SUCCESS == err);
-    err = g_transfer_on_dmac.enable(&g_transfer2_ctrl);
-    assert(FSP_SUCCESS == err);
-
     /* --- GPS: DMAC4, SCI9 RXI --- */
     set_transfer_length(&g_transfer4_cfg, GPS_RX_BUF_SIZE);
     set_transfer_dst_src_address(&g_transfer4_cfg,
@@ -212,13 +203,6 @@ void transfer_imu_rx_callback(transfer_callback_args_t *p_args)
     (void)g_transfer_on_dmac.reconfigure(&g_transfer0_ctrl, g_transfer0_cfg.p_info);
 }
 
-/** LoRa: 传满 256 字节，主循环中复位 */
-void transfer_lora_rx_callback(transfer_callback_args_t *p_args)
-{
-    FSP_PARAMETER_NOT_USED(p_args);
-    lora_rx_complete = true;
-}
-
 /** GPS: 传满 128 字节，主循环中复位 */
 void transfer_gps_rx_callback(transfer_callback_args_t *p_args)
 {
@@ -238,18 +222,6 @@ void IMU_DMAC_Reset(void)
                                   (const volatile uint8_t *)&R_SCI5->RDR,
                                   (const volatile uint8_t *)imu_rx_buf);
     err = g_transfer_on_dmac.reconfigure(&g_transfer0_ctrl, g_transfer0_cfg.p_info);
-    assert(FSP_SUCCESS == err);
-}
-
-void LORA_DMAC_Reset(void)
-{
-    fsp_err_t err;
-    lora_rx_complete = false;
-    set_transfer_length(&g_transfer2_cfg, LORA_RX_BUF_SIZE);
-    set_transfer_dst_src_address(&g_transfer2_cfg,
-                                  (const volatile uint8_t *)&R_SCI2->RDR,
-                                  (const volatile uint8_t *)lora_rx_buf);
-    err = g_transfer_on_dmac.reconfigure(&g_transfer2_ctrl, g_transfer2_cfg.p_info);
     assert(FSP_SUCCESS == err);
 }
 

@@ -42,7 +42,6 @@ void UART2_LoRa_Init(void);
 void UART9_GPS_Init(void);
 void DMAC_Init(void);
 void IMU_DMAC_Reset(void);
-void LORA_DMAC_Reset(void);
 void GPS_DMAC_Reset(void);
 
 #endif

@@ -596,23 +596,6 @@ FSP Configuration
       Offset value (Valid only when address mode is Offset addition): 1
       Source Buffer Size: 1
       
-    Instance "g_transfer2 Transfer (r_dmac) SCI2 RXI (Receive data full)"
-      Name: g_transfer2
-      Channel: 2
-      Mode: Normal
-      Transfer Size: 1 Byte
-      Destination Address Mode: Incremented
-      Source Address Mode: Fixed
-      Repeat Area (Unused in Normal Mode): Destination
-      Number of Transfers: 1
-      Number of Blocks (Valid only in Repeat,Block or Repeat-Block Mode): 0
-      Activation Source: SCI2 RXI (Receive data full)
-      Callback: transfer_lora_rx_callback
-      Transfer End Interrupt Priority: Priority 8
-      Interrupt Frequency: Interrupt after all transfers have completed
-      Offset value (Valid only when address mode is Offset addition): 1
-      Source Buffer Size: 1
-      
     Instance "g_transfer4 Transfer (r_dmac) SCI9 RXI (Receive data full)"
       Name: g_transfer4
       Channel: 4
