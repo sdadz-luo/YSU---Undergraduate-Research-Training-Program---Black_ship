@@ -48,7 +48,6 @@ output.rasc
 rasc_launcher.bat
 rasc_version.bat
 rasc_version.txt
-configuration.xml
 buildinfo.gpdsc
 bsp_linker_info.h
 
@@ -75,6 +74,13 @@ RTE/
 
 # 编译器/链接器 via 文件（由构建工具生成）
 via/
+
+# ============================================
+# 构建日志
+# ============================================
+
+# 命令行构建输出 (UV4 -b)
+Build.log
 
 # ============================================
 # 操作系统 / 编辑器

@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 void pwm_init(void);
-void pwm_setduty(float A, float B);
+void pwm_setduty(float left, float right);
 
 #endif

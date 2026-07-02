@@ -6,7 +6,8 @@
 #include "host_computer.h"
 #include "pid.h"
 #include "pwm.h"
-#include "uart.h"
 #include "gpt.h"
+#include "uart.h"
+#include "gps.h"
 
 #endif

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "headfile.h"
 #include "uart.h"
 
@@ -34,8 +35,77 @@ void UART5_IMU_Init(void)
 }
 
 /* =========================================================================
+ *  1.5 N10 雷达 - SCI3/UART3 + DMAC4
+ *     58 字节 DMAC 接收，回调中解析为 18 个距离值
+ * ========================================================================= */
+
+/* DMAC 辅助函数前向声明 */
+void set_transfer_length(transfer_cfg_t const * const p_config, volatile uint16_t _length);
+void set_transfer_dst_src_address(transfer_cfg_t const * const p_config,
+                                   const volatile uint8_t * _p_src,
+                                   const volatile uint8_t * _p_dest);
+
+volatile uint8_t  n10_rx_buf[N10_RX_BUF_SIZE];
+volatile bool     n10_rx_complete = false;
+volatile int      n10_data[N10_DATA_NUM];
+
+/** UART3 回调 - 仅 TX_COMPLETE */
+void N10_callback(uart_callback_args_t *p_args)
+{
+    (void)p_args;
+}
+
+/** DMAC4 回调 - DMAC 传输完成，解析 N10 数据 */
+void transfer_N10_rx_callback(transfer_callback_args_t *p_args)
+{
+    FSP_PARAMETER_NOT_USED(p_args);
+
+    /* 解析 N10 雷达 58 字节 → 18 个距离值 */
+    {
+        uint16_t tmp;
+        tmp = (uint16_t)(((uint16_t)n10_rx_buf[5] << 8) | n10_rx_buf[6]);
+        n10_data[0] = (int)((float)tmp / 100.0f + 0.5f);
+        tmp = (uint16_t)(((uint16_t)n10_rx_buf[55] << 8) | n10_rx_buf[56]);
+        n10_data[17] = (int)((float)tmp / 100.0f + 0.5f);
+    }
+    for (int i = 0; i <= 15; i++)
+    {
+        n10_data[i + 1] = (int)(((uint16_t)n10_rx_buf[3 * i + 7] << 8) + n10_rx_buf[3 * i + 8]);
+    }
+
+    n10_rx_complete = true;
+
+    /* 复位 DMAC */
+    (void)g_transfer_on_dmac.open(&g_transfer4_ctrl, &g_transfer4_cfg);
+    (void)g_transfer_on_dmac.enable(&g_transfer4_ctrl);
+}
+
+void UART3_N10_Init(void)
+{
+    fsp_err_t err = R_SCI_UART_Open(&g_uart3_ctrl, &g_uart3_cfg);
+    assert(FSP_SUCCESS == err);
+
+    /* 清除 IELSR（仅 RXI） */
+    R_ICU->IELSR[SCI3_RXI_IRQn] = 0U;
+}
+
+void DMAC4_N10_Init(void)
+{
+    fsp_err_t err;
+
+    set_transfer_length(&g_transfer4_cfg, N10_RX_BUF_SIZE);
+    set_transfer_dst_src_address(&g_transfer4_cfg,
+            (const volatile uint8_t *)&R_SCI3->RDR,
+            (const volatile uint8_t *)n10_rx_buf);
+    err = g_transfer_on_dmac.open(&g_transfer4_ctrl, &g_transfer4_cfg);
+    assert(FSP_SUCCESS == err);
+    err = g_transfer_on_dmac.enable(&g_transfer4_ctrl);
+    assert(FSP_SUCCESS == err);
+}
+
+/* =========================================================================
  *  2. LoRa 无线 - SCI2/UART2（中断接收）
- *     状态机解析上位机协议：EE=屏包(速度), CC=摇杆包(方向)
+ *     状态机解析协议：EE=屏包(速度/开关), CC=摇杆包(方向)
  * ========================================================================= */
 volatile uint8_t lora_rx_buf[LORA_RX_BUF_SIZE];
 volatile bool lora_rx_complete = false;
@@ -122,15 +192,28 @@ void UART2_LoRa_Init(void)
 }
 
 /* =========================================================================
- *  3. GPS - SCI9/UART9 + DMAC4
+ *  3. GPS (SCI9/UART9) — 中断接收
  * ========================================================================= */
-volatile uint8_t gps_rx_buf[GPS_RX_BUF_SIZE];
-volatile bool gps_rx_complete = false;
-
+char buf[GPS_BUF_LEN];
+/** GPS 回调 - 积累 NMEA 语句，遇 \n 解析 */
 void gps_callback(uart_callback_args_t *p_args)
 {
     switch (p_args->event)
     {
+        case UART_EVENT_RX_CHAR:
+        {
+            static uint16_t idx = 0;
+         
+            char ch = (char)p_args->data;
+            if (idx < GPS_BUF_LEN - 1) buf[idx++] = ch;
+            if (ch == '\n')
+            {
+                buf[idx] = '\0';
+                GPS_Parse(buf);
+                idx = 0;
+            }
+            break;
+        }
         case UART_EVENT_TX_COMPLETE:
             uart_send_complete_flag = true;
             break;
@@ -146,8 +229,56 @@ void UART9_GPS_Init(void)
 }
 
 /* =========================================================================
- *  4. DMAC 辅助函数
+ *  4. 4G 发送 - SCI8/UART8（中断发送）
+ *     4 秒定时发送 GPS + N10 JSON 数据
  * ========================================================================= */
+volatile bool uart8_tx_complete = false;
+
+void G_callback(uart_callback_args_t *p_args)
+{
+    if (p_args->event == UART_EVENT_TX_COMPLETE)
+        uart8_tx_complete = true;
+}
+
+/** DMAC2 TX 回调 - SCI8 发送完成 */
+void transfer_4G_tx_callback(transfer_callback_args_t *p_args)
+{
+    FSP_PARAMETER_NOT_USED(p_args);
+    /* DMAC 传输完成，实际数据已被 UART 发送 */
+}
+
+void UART8_4G_Init(void)
+{
+    fsp_err_t err = R_SCI_UART_Open(&g_uart8_ctrl, &g_uart8_cfg);
+    assert(FSP_SUCCESS == err);
+
+    /* 清除 IELSR（仅 RXI，参考 FSP 示例） */
+    R_ICU->IELSR[SCI8_RXI_IRQn] = 0U;
+}
+
+/** 发送 JSON 字符串到 4G */
+void UART8_4G_Send(const char *str)
+{
+    uart8_tx_complete = false;
+    fsp_err_t err = R_SCI_UART_Write(&g_uart8_ctrl, (const uint8_t *)str, strlen(str));
+    if (FSP_SUCCESS != err) __BKPT();
+    while (!uart8_tx_complete) {}
+}
+
+/* =========================================================================
+ *  5. DMAC 辅助函数
+ * ========================================================================= */
+
+/* DMAC2 初始化（4G TX，预留，当前未启用） */
+void DMAC2_4G_Init(void)
+{
+    fsp_err_t err;
+    err = g_transfer_on_dmac.open(&g_transfer2_ctrl, &g_transfer2_cfg);
+    assert(FSP_SUCCESS == err);
+    err = g_transfer_on_dmac.enable(&g_transfer2_ctrl);
+    assert(FSP_SUCCESS == err);
+}
+
 void set_transfer_length(transfer_cfg_t const * const p_config, volatile uint16_t _length)
 {
     p_config->p_info->length = _length;
@@ -177,20 +308,7 @@ void DMAC_Init(void)
     assert(FSP_SUCCESS == err);
     err = g_transfer_on_dmac.enable(&g_transfer0_ctrl);
     assert(FSP_SUCCESS == err);
-
-    /* --- GPS: DMAC4, SCI9 RXI --- */
-    set_transfer_length(&g_transfer4_cfg, GPS_RX_BUF_SIZE);
-    set_transfer_dst_src_address(&g_transfer4_cfg,
-            (const volatile uint8_t *)&R_SCI9->RDR, (const volatile uint8_t *)gps_rx_buf);
-    err = g_transfer_on_dmac.open(&g_transfer4_ctrl, &g_transfer4_cfg);
-    assert(FSP_SUCCESS == err);
-    err = g_transfer_on_dmac.enable(&g_transfer4_ctrl);
-    assert(FSP_SUCCESS == err);
 }
-
-/* =========================================================================
- *  6. DMAC 回调
- * ========================================================================= */
 
 /** IMU: 传满 22 字节后自动复位 DMAC */
 void transfer_imu_rx_callback(transfer_callback_args_t *p_args)
@@ -203,16 +321,9 @@ void transfer_imu_rx_callback(transfer_callback_args_t *p_args)
     (void)g_transfer_on_dmac.reconfigure(&g_transfer0_ctrl, g_transfer0_cfg.p_info);
 }
 
-/** GPS: 传满 128 字节，主循环中复位 */
-void transfer_gps_rx_callback(transfer_callback_args_t *p_args)
-{
-    FSP_PARAMETER_NOT_USED(p_args);
-    gps_rx_complete = true;
-}
-
-/* =================================================================================================
+/* =========================================================================
  *  DMAC 重置
- * ================================================================================================= */
+ * ========================================================================= */
 void IMU_DMAC_Reset(void)
 {
     fsp_err_t err;
@@ -223,33 +334,6 @@ void IMU_DMAC_Reset(void)
                                   (const volatile uint8_t *)imu_rx_buf);
     err = g_transfer_on_dmac.reconfigure(&g_transfer0_ctrl, g_transfer0_cfg.p_info);
     assert(FSP_SUCCESS == err);
-}
-
-void GPS_DMAC_Reset(void)
-{
-    fsp_err_t err;
-    gps_rx_complete = false;
-    set_transfer_length(&g_transfer4_cfg, GPS_RX_BUF_SIZE);
-    set_transfer_dst_src_address(&g_transfer4_cfg,
-                                  (const volatile uint8_t *)&R_SCI9->RDR,
-                                  (const volatile uint8_t *)gps_rx_buf);
-    err = g_transfer_on_dmac.reconfigure(&g_transfer4_ctrl, g_transfer4_cfg.p_info);
-    assert(FSP_SUCCESS == err);
-}
-
-/* =================================================================================================
- *  printf 重定向（通过 UART5 输出）
- * ================================================================================================= */
-int fputc(int ch, FILE *f)
-{
-    fsp_err_t err;
-    (void)f;
-
-    err = R_SCI_UART_Write(&g_uart5_ctrl, (uint8_t *)&ch, 1);
-    if (FSP_SUCCESS != err) __BKPT();
-    while (!uart_send_complete_flag) {}
-    uart_send_complete_flag = false;
-    return ch;
 }
 
 
