@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
-/* 控制变量 */
+/* =========================================================================
+ *  全局控制变量
+ * ========================================================================= */
 float gyro, yaw;                /* IMU 解析值 */
 float pwm_l, pwm_r, pwm_turn;   /* PWM 计算结果 */
 extern pid pid_gyro, pid_yaw;
@@ -16,18 +18,25 @@ extern bool   gps_valid;
 /* N10 雷达数据 */
 extern volatile int n10_data[N10_DATA_NUM];
 
-/* 4G 发送相关 */
-volatile uint8_t gpt1_flag = 0;  /* GPT1 回调置 1，主循环发 */
-static char json_buf[300];       /* JSON 格式化缓冲 */
+/* =========================================================================
+ *  4G 发送
+ * ========================================================================= */
+volatile uint8_t gpt1_send = 0;  /* 0=空闲, 1=发雷达, 2=发GPS */
+static char json_buf[512];       /* JSON 格式化缓冲 */
 
-/* 5ms 定时器初始化 */
+#define JSON_HEAD  "{\"id\":\"123\",\"version\":\"1.0\",\"params\":{"
+#define JSON_TAIL  "}}"
+
+/* =========================================================================
+ *  GPT0 — 5ms PID 控制
+ * ========================================================================= */
+
 void gpt0_init(void)
 {
     R_GPT_Open(&g_timer0_ctrl, &g_timer0_cfg);
     R_GPT_Start(&g_timer0_ctrl);
 }
 
-/* 5ms 定时回调：读取 IMU → PID 计算 → 输出 PWM */
 void gpt0_callback(timer_callback_args_t *p_args)
 {
     (void)p_args;
@@ -68,7 +77,7 @@ void gpt0_callback(timer_callback_args_t *p_args)
 }
 
 /* =========================================================================
- *  GPT1 — 4 秒定时：发送 GPS + N10 到 4G
+ *  GPT1 — 1 秒定时上报 4G（交替发雷达和 GPS）
  * ========================================================================= */
 
 void gpt1_init(void)
@@ -77,32 +86,51 @@ void gpt1_init(void)
     R_GPT_Start(&g_timer1_ctrl);
 }
 
-void gpt1_send_4g(void)
+/** 发送 N10 雷达数据 */
+void send_n10(void)
 {
-    /* 1. N10 雷达数据 */
-    sprintf(json_buf, "{\"id\":\"123\",\"version\":\"1.0\",\"params\":{\"N10\":{\"value\":[");
-    UART8_4G_Send(json_buf);
+    char *p = json_buf;
+    p += sprintf(p, JSON_HEAD);
+    p += sprintf(p, "\"N10\":{\"value\":[");
     for (int i = 0; i < 18; i++)
     {
-        sprintf(json_buf, "%d", n10_data[i]);
-        UART8_4G_Send(json_buf);
-        if (i < 17) UART8_4G_Send(",");
+        p += sprintf(p, "%d", n10_data[i]);
+        if (i < 17) p += sprintf(p, ",");
     }
-    UART8_4G_Send("]}}");
-
-    /* 2. GPS 纬度 */
-    sprintf(json_buf, "{\"id\":\"123\",\"version\":\"1.0\",\"params\":{\"black_lat\":{\"value\":%.6f}}}",
-            gps_lat);
-    UART8_4G_Send(json_buf);
-
-    /* 3. GPS 经度 */
-    sprintf(json_buf, "{\"id\":\"123\",\"version\":\"1.0\",\"params\":{\"black_lon\":{\"value\":%.6f}}}",
-            gps_lon);
+    sprintf(p, "]}" JSON_TAIL);
     UART8_4G_Send(json_buf);
 }
 
+/** 发送 GPS 经纬度 */
+void send_gps(void)
+{
+    sprintf(json_buf, JSON_HEAD
+            "\"black_lat\":{\"value\":%.6f},"
+            "\"black_lon\":{\"value\":%.6f}"
+            JSON_TAIL,
+            gps_lat, gps_lon);
+    UART8_4G_Send(json_buf);
+}
+
+/** GPT1 溢出中断回调 — 前 28s 注网，之后雷达/GPS 按序发送 */
 void gpt1_callback(timer_callback_args_t *p_args)
 {
     (void)p_args;
-    gpt1_flag = 1;  /* 通知主循环发送 */
+    static uint8_t startup = 28;  /* 28 × 1s = 28s 启动延迟 */
+    static uint8_t tick = 0;      /* 0=发雷达, 1=发GPS, 2=等待 */
+
+    if (startup)
+    {
+        startup--;
+        return;
+    }
+
+    if (tick == 0)
+        gpt1_send = 2;   /* 发 GPS */
+    else if (tick == 1)
+        gpt1_send = 1;   /* 发雷达（距 GPS 1s） */
+    /* tick == 2: 跳过，额外等 1s */
+
+    tick++;
+    if (tick > 2) tick = 0;
 }

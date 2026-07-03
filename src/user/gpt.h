@@ -5,7 +5,8 @@
 
 void gpt0_init(void);
 void gpt1_init(void);
-extern volatile uint8_t gpt1_flag;
-void gpt1_send_4g(void);
+extern volatile uint8_t gpt1_send;  /* 0=¿ÕÏÐ, 1=·¢À×´ï, 2=·¢GPS */
+void send_n10(void);
+void send_gps(void);
 
 #endif

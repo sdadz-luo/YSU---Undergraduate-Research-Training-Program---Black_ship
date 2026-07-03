@@ -26,10 +26,15 @@ void hal_entry(void)
     /* ========== Ö÷Ñ­»· ========== */
     while (1)
     {
-        if (gpt1_flag)
+        if (gpt1_send == 1)
         {
-            gpt1_flag = 0;
-            gpt1_send_4g();
+            gpt1_send = 0;
+            send_n10();
+        }
+        else if (gpt1_send == 2)
+        {
+            gpt1_send = 0;
+            send_gps();
         }
     }
 

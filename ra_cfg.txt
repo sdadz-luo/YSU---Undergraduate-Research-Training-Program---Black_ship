@@ -666,7 +666,7 @@ FSP Configuration
       General: Name: g_timer1
       General: Channel: 1
       General: Mode: Periodic
-      General: Period: 4
+      General: Period: 1
       General: Compare Match: Compare Match A: Status: Disabled
       General: Compare Match: Compare Match A: Compare match value: 0x10000
       General: Compare Match: Compare Match B: Status: Disabled
