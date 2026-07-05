@@ -771,6 +771,8 @@
       <configSetting altId="gpt7.gtioca.p603" configurationId="gpt7.gtioca"/>
       <configSetting altId="gpt7.gtiocb.p602" configurationId="gpt7.gtiocb"/>
       <configSetting altId="gpt7.mode.gtiocaandgtiocb.free" configurationId="gpt7.mode"/>
+      <configSetting altId="p015.output.low" configurationId="p015"/>
+      <configSetting altId="p015.gpio_mode.gpio_mode_out.low" configurationId="p015.gpio_mode"/>
       <configSetting altId="p108.debug0.swdio" configurationId="p108"/>
       <configSetting altId="p108.gpio_mode.gpio_mode_peripheral" configurationId="p108.gpio_mode"/>
       <configSetting altId="p202.sci9.rxd" configurationId="p202"/>
@@ -783,6 +785,8 @@
       <configSetting altId="p301.gpio_mode.gpio_mode_peripheral" configurationId="p301.gpio_mode"/>
       <configSetting altId="p302.sci2.txd" configurationId="p302"/>
       <configSetting altId="p302.gpio_mode.gpio_mode_peripheral" configurationId="p302.gpio_mode"/>
+      <configSetting altId="p500.output.low" configurationId="p500"/>
+      <configSetting altId="p500.gpio_mode.gpio_mode_out.low" configurationId="p500.gpio_mode"/>
       <configSetting altId="p501.sci5.txd" configurationId="p501"/>
       <configSetting altId="p501.gpio_mode.gpio_mode_peripheral" configurationId="p501.gpio_mode"/>
       <configSetting altId="p502.sci5.rxd" configurationId="p502"/>

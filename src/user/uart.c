@@ -3,15 +3,18 @@
 #include "headfile.h"
 #include "uart.h"
 
-/* ÒýÓÃÓÚ hal_entry.c µÄ¿ØÖÆ±äÁ¿ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ hal_entry.c ï¿½Ä¿ï¿½ï¿½Æ±ï¿½ï¿½ï¿½ */
 extern uint8_t v, move, move_flag;
 
-/* printf ·¢ËÍÍê³É±êÖ¾ */
+/* P500 1s ï¿½ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½ï¿½ï¿½ - ï¿½Ú¸ï¿½ uart.h ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ extern, ï¿½ï¿½ gpt.c gpt0_callback ï¿½Ð¶ï¿½Ê± */
+volatile uint16_t p500_hold_count = 0;
+
+/* printf ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É±ï¿½Ö¾ */
 static volatile bool uart_send_complete_flag = false;
 
 /* =========================================================================
  *  1. IMU (JY901B) - SCI5/UART5 + DMAC0
- *     DMAC ×Ô¶¯°áÔËÊý¾Ý£¬»Øµ÷ÖÐ¸´Î» DMAC
+ *     DMAC ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½ï¿½Øµï¿½ï¿½Ð¸ï¿½Î» DMAC
  * ========================================================================= */
 volatile uint8_t imu_rx_buf[IMU_RX_BUF_SIZE];
 volatile bool imu_rx_complete = false;
@@ -35,11 +38,11 @@ void UART5_IMU_Init(void)
 }
 
 /* =========================================================================
- *  1.5 N10 À×´ï - SCI3/UART3 + DMAC4
- *     58 ×Ö½Ú DMAC ½ÓÊÕ£¬»Øµ÷ÖÐ½âÎöÎª 18 ¸ö¾àÀëÖµ
+ *  1.5 N10 ï¿½×´ï¿½ - SCI3/UART3 + DMAC4
+ *     58 ï¿½Ö½ï¿½ DMAC ï¿½ï¿½ï¿½Õ£ï¿½ï¿½Øµï¿½ï¿½Ð½ï¿½ï¿½ï¿½Îª 18 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
  * ========================================================================= */
 
-/* DMAC ¸¨Öúº¯ÊýÇ°ÏòÉùÃ÷ */
+/* DMAC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 void set_transfer_length(transfer_cfg_t const * const p_config, volatile uint16_t _length);
 void set_transfer_dst_src_address(transfer_cfg_t const * const p_config,
                                    const volatile uint8_t * _p_src,
@@ -49,18 +52,18 @@ volatile uint8_t  n10_rx_buf[N10_RX_BUF_SIZE];
 volatile bool     n10_rx_complete = false;
 volatile int      n10_data[N10_DATA_NUM];
 
-/** UART3 »Øµ÷ - ½ö TX_COMPLETE */
+/** UART3 ï¿½Øµï¿½ - ï¿½ï¿½ TX_COMPLETE */
 void N10_callback(uart_callback_args_t *p_args)
 {
     (void)p_args;
 }
 
-/** DMAC4 »Øµ÷ - DMAC ´«ÊäÍê³É£¬½âÎö N10 Êý¾Ý */
+/** DMAC4 ï¿½Øµï¿½ - DMAC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ N10 ï¿½ï¿½ï¿½ï¿½ */
 void transfer_N10_rx_callback(transfer_callback_args_t *p_args)
 {
     FSP_PARAMETER_NOT_USED(p_args);
 
-    /* ½âÎö N10 À×´ï 58 ×Ö½Ú ¡ú 18 ¸ö¾àÀëÖµ */
+    /* ï¿½ï¿½ï¿½ï¿½ N10 ï¿½×´ï¿½ 58 ï¿½Ö½ï¿½ ï¿½ï¿½ 18 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ */
     {
         uint16_t tmp;
         tmp = (uint16_t)(((uint16_t)n10_rx_buf[5] << 8) | n10_rx_buf[6]);
@@ -75,7 +78,7 @@ void transfer_N10_rx_callback(transfer_callback_args_t *p_args)
 
     n10_rx_complete = true;
 
-    /* ¸´Î» DMAC */
+    /* ï¿½ï¿½Î» DMAC */
     (void)g_transfer_on_dmac.open(&g_transfer4_ctrl, &g_transfer4_cfg);
     (void)g_transfer_on_dmac.enable(&g_transfer4_ctrl);
 }
@@ -85,7 +88,7 @@ void UART3_N10_Init(void)
     fsp_err_t err = R_SCI_UART_Open(&g_uart3_ctrl, &g_uart3_cfg);
     assert(FSP_SUCCESS == err);
 
-    /* Çå³ý IELSR£¨½ö RXI£© */
+    /* ï¿½ï¿½ï¿½ IELSRï¿½ï¿½ï¿½ï¿½ RXIï¿½ï¿½ */
     R_ICU->IELSR[SCI3_RXI_IRQn] = 0U;
 }
 
@@ -104,13 +107,13 @@ void DMAC4_N10_Init(void)
 }
 
 /* =========================================================================
- *  2. LoRa ÎÞÏß - SCI2/UART2£¨ÖÐ¶Ï½ÓÊÕ£©
- *     ×´Ì¬»ú½âÎöÐ­Òé£ºEE=ÆÁ°ü(ËÙ¶È/¿ª¹Ø), CC=Ò¡¸Ë°ü(·½Ïò)
+ *  2. LoRa ï¿½ï¿½ï¿½ï¿½ - SCI2/UART2ï¿½ï¿½ï¿½Ð¶Ï½ï¿½ï¿½Õ£ï¿½
+ *     ×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð­ï¿½é£ºEE=ï¿½ï¿½ï¿½ï¿½(ï¿½Ù¶ï¿½/ï¿½ï¿½ï¿½ï¿½), CC=Ò¡ï¿½Ë°ï¿½(ï¿½ï¿½ï¿½ï¿½)
  * ========================================================================= */
 volatile uint8_t lora_rx_buf[LORA_RX_BUF_SIZE];
 volatile bool lora_rx_complete = false;
 
-/* CRC8 Ð£Ñé */
+/* CRC8 Ð£ï¿½ï¿½ */
 #define CRC8_POLY  0x31
 static uint8_t calc_crc8(const uint8_t *data, uint16_t len)
 {
@@ -127,7 +130,7 @@ static uint8_t calc_crc8(const uint8_t *data, uint16_t len)
     return crc;
 }
 
-/* °ü½âÎö×´Ì¬»ú */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ */
 #define LORA_PKT_MAX    8
 static uint8_t  lora_pkt[LORA_PKT_MAX];
 static uint8_t  lora_pkt_idx = 0;
@@ -141,7 +144,7 @@ void lora_callback(uart_callback_args_t *p_args)
         {
             uint8_t ch = (uint8_t)p_args->data;
 
-            /* ¼ì²âÖ¡Í·Æô¶¯ÐÂ°ü */
+            /* ï¿½ï¿½ï¿½Ö¡Í·ï¿½ï¿½ï¿½ï¿½ï¿½Â°ï¿½ */
             if (!lora_pkt_start && (ch == 0xEE || ch == 0xCC))
             {
                 lora_pkt_start = true;
@@ -152,7 +155,7 @@ void lora_callback(uart_callback_args_t *p_args)
 
             lora_pkt[lora_pkt_idx++] = ch;
 
-            /* --- ÆÁ°ü (6B): EE 02 07 ËÙ¶È CRC8 FF --- */
+            /* --- ï¿½ï¿½ï¿½ï¿½ (6B): EE 02 07 ï¿½Ù¶ï¿½ CRC8 FF --- */
             if (lora_pkt_idx == 6 && lora_pkt[0] == 0xEE
                 && lora_pkt[1] == 0x02 && lora_pkt[5] == 0xFF)
             {
@@ -160,18 +163,19 @@ void lora_callback(uart_callback_args_t *p_args)
                 {
                     if (lora_pkt[2] == CMD_SPEED)   v = lora_pkt[3];
                     if (lora_pkt[2] == CMD_SWITCH)  move_flag = lora_pkt[3];
+                    if (lora_pkt[2] == CMD_P500)    p500_hold_count = 200; /* 200*5ms=1s */
                 }
                 lora_pkt_start = false;
             }
-            /* --- Ò¡¸Ë°ü (7B): CC 01 °×·½Ïò 02 ºÚ·½Ïò CRC8 33 --- */
-            else if (lora_pkt_idx == 7 && lora_pkt[0] == 0xCC
-                     && lora_pkt[3] == 0x02 && lora_pkt[6] == 0x33)
+            /* --- Ò¡ï¿½Ë°ï¿½ (6B): CC 01 ï¿½×·ï¿½ï¿½ï¿½ 02 ï¿½Ú·ï¿½ï¿½ï¿½ CRC8 --- */
+            else if (lora_pkt_idx == 6 && lora_pkt[0] == 0xCC
+                     && lora_pkt[3] == 0x02)
             {
                 if (calc_crc8(lora_pkt, 5) == lora_pkt[5])
                     move = lora_pkt[4];
                 lora_pkt_start = false;
             }
-            /* ³¬³¤±£»¤ */
+            /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
             else if (lora_pkt_idx >= LORA_PKT_MAX)
                 lora_pkt_start = false;
 
@@ -192,10 +196,10 @@ void UART2_LoRa_Init(void)
 }
 
 /* =========================================================================
- *  3. GPS (SCI9/UART9) ¡ª ÖÐ¶Ï½ÓÊÕ
+ *  3. GPS (SCI9/UART9) ï¿½ï¿½ ï¿½Ð¶Ï½ï¿½ï¿½ï¿½
  * ========================================================================= */
 char buf[GPS_BUF_LEN];
-/** GPS »Øµ÷ - »ýÀÛ NMEA Óï¾ä£¬Óö \n ½âÎö */
+/** GPS ï¿½Øµï¿½ - ï¿½ï¿½ï¿½ï¿½ NMEA ï¿½ï¿½ä£¬ï¿½ï¿½ \n ï¿½ï¿½ï¿½ï¿½ */
 void gps_callback(uart_callback_args_t *p_args)
 {
     switch (p_args->event)
@@ -229,8 +233,8 @@ void UART9_GPS_Init(void)
 }
 
 /* =========================================================================
- *  4. 4G ·¢ËÍ - SCI8/UART8£¨ÖÐ¶Ï·¢ËÍ£©
- *     4 Ãë¶¨Ê±·¢ËÍ GPS + N10 JSON Êý¾Ý
+ *  4. 4G ï¿½ï¿½ï¿½ï¿½ - SCI8/UART8ï¿½ï¿½ï¿½Ð¶Ï·ï¿½ï¿½Í£ï¿½
+ *     4 ï¿½ë¶¨Ê±ï¿½ï¿½ï¿½ï¿½ GPS + N10 JSON ï¿½ï¿½ï¿½ï¿½
  * ========================================================================= */
 volatile bool uart8_tx_complete = false;
 
@@ -240,11 +244,11 @@ void G_callback(uart_callback_args_t *p_args)
         uart8_tx_complete = true;
 }
 
-/** DMAC2 TX »Øµ÷ - SCI8 ·¢ËÍÍê³É */
+/** DMAC2 TX ï¿½Øµï¿½ - SCI8 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 void transfer_4G_tx_callback(transfer_callback_args_t *p_args)
 {
     FSP_PARAMETER_NOT_USED(p_args);
-    /* DMAC ´«ÊäÍê³É£¬Êµ¼ÊÊý¾ÝÒÑ±» UART ·¢ËÍ */
+    /* DMAC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É£ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ±ï¿½ UART ï¿½ï¿½ï¿½ï¿½ */
 }
 
 void UART8_4G_Init(void)
@@ -252,11 +256,11 @@ void UART8_4G_Init(void)
     fsp_err_t err = R_SCI_UART_Open(&g_uart8_ctrl, &g_uart8_cfg);
     assert(FSP_SUCCESS == err);
 
-    /* Çå³ý IELSR£¨½ö RXI£¬²Î¿¼ FSP Ê¾Àý£© */
+    /* ï¿½ï¿½ï¿½ IELSRï¿½ï¿½ï¿½ï¿½ RXIï¿½ï¿½ï¿½Î¿ï¿½ FSP Ê¾ï¿½ï¿½ï¿½ï¿½ */
     R_ICU->IELSR[SCI8_RXI_IRQn] = 0U;
 }
 
-/** ·¢ËÍ JSON ×Ö·û´®µ½ 4G */
+/** ï¿½ï¿½ï¿½ï¿½ JSON ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ 4G */
 void UART8_4G_Send(const char *str)
 {
     uart8_tx_complete = false;
@@ -266,10 +270,10 @@ void UART8_4G_Send(const char *str)
 }
 
 /* =========================================================================
- *  5. DMAC ¸¨Öúº¯Êý
+ *  5. DMAC ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  * ========================================================================= */
 
-/* DMAC2 ³õÊ¼»¯£¨4G TX£¬Ô¤Áô£¬µ±Ç°Î´ÆôÓÃ£© */
+/* DMAC2 ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½4G TXï¿½ï¿½Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç°Î´ï¿½ï¿½ï¿½Ã£ï¿½ */
 void DMAC2_4G_Init(void)
 {
     fsp_err_t err;
@@ -293,7 +297,7 @@ void set_transfer_dst_src_address(transfer_cfg_t const * const p_config,
 }
 
 /* =========================================================================
- *  5. DMAC ³õÊ¼»¯
+ *  5. DMAC ï¿½ï¿½Ê¼ï¿½ï¿½
  *     DMAC0=IMU(SCI5), DMAC2=LoRa(SCI2), DMAC4=GPS(SCI9)
  * ========================================================================= */
 void DMAC_Init(void)
@@ -310,7 +314,7 @@ void DMAC_Init(void)
     assert(FSP_SUCCESS == err);
 }
 
-/** IMU: ´«Âú 22 ×Ö½Úºó×Ô¶¯¸´Î» DMAC */
+/** IMU: ï¿½ï¿½ï¿½ï¿½ 22 ï¿½Ö½Úºï¿½ï¿½Ô¶ï¿½ï¿½ï¿½Î» DMAC */
 void transfer_imu_rx_callback(transfer_callback_args_t *p_args)
 {
     FSP_PARAMETER_NOT_USED(p_args);
@@ -322,7 +326,7 @@ void transfer_imu_rx_callback(transfer_callback_args_t *p_args)
 }
 
 /* =========================================================================
- *  DMAC ÖØÖÃ
+ *  DMAC ï¿½ï¿½ï¿½ï¿½
  * ========================================================================= */
 void IMU_DMAC_Reset(void)
 {

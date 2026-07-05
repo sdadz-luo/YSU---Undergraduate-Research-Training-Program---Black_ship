@@ -1,0 +1,13 @@
+﻿-std=c17
+-target arm-arm-none-eabi
+-mcpu=cortex-m33
+-DR7FA6M5BF2CBG
+-D__ARM_ARCH_8M_MAIN__
+-D_RENESAS_RA_
+-Ira_gen
+-Isrc
+-Ira/fsp/inc
+-Ira/fsp/inc/api
+-Ira/fsp/inc/instances
+-Ira/fsp/src/bsp/cmsis/Device/RENESAS/Include
+-Ira/arm/CMSIS_6/CMSIS/Core/Include

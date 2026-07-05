@@ -4,21 +4,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ===================== »º³åÇø´óÐ¡ ===================== */
-#define IMU_RX_BUF_SIZE     22      /* JY901B Á½Ö¡ 11x2 */
-#define LORA_RX_BUF_SIZE    256     /* ÖÐ¶Ï½ÓÊÕ»º³å */
-#define N10_RX_BUF_SIZE     58      /* N10 À×´ïÒ»Ö¡ */
-#define N10_DATA_NUM        18      /* N10 À×´ï 18 ¸öµã */
-#define UART8_TX_BUF_SIZE   256     /* 4G ·¢ËÍ»º³å */
+/* ===================== ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ ===================== */
+#define IMU_RX_BUF_SIZE     22      /* JY901B ï¿½ï¿½Ö¡ 11x2 */
+#define LORA_RX_BUF_SIZE    256     /* ï¿½Ð¶Ï½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ */
+#define N10_RX_BUF_SIZE     58      /* N10 ï¿½×´ï¿½Ò»Ö¡ */
+#define N10_DATA_NUM        18      /* N10 ï¿½×´ï¿½ 18 ï¿½ï¿½ï¿½ï¿½ */
+#define UART8_TX_BUF_SIZE   256     /* 4G ï¿½ï¿½ï¿½Í»ï¿½ï¿½ï¿½ */
 
-/* ===================== ·½Ïò¶¨Òå ===================== */
+/* ===================== ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ===================== */
 #define DIR_STOP        0
 #define DIR_FORWARD     1
 #define DIR_BACKWARD    2
 #define DIR_LEFT        3
 #define DIR_RIGHT       4
 
-/* ===================== LoRa ×é¼þ±àºÅ ===================== */
+/* ===================== LoRa ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ===================== */
 #define CMD_LIGHT       0x01
 #define CMD_PUMP        0x02
 #define CMD_GIMBAL_UD   0x03
@@ -27,31 +27,35 @@
 #define CMD_ARM_DUTY    0x06
 #define CMD_SPEED       0x07
 #define CMD_SWITCH      0x08
+#define CMD_P500        0x09    /* P500 ï¿½ï¿½ï¿½ 1s */
 
-/* ===================== ½ÓÊÕ»º³åÇø ===================== */
+/* ===================== P500 1s ï¿½ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½ (GPT0 5ms * 200=1000ms) ===================== */
+extern volatile uint16_t    p500_hold_count;
+
+/* ===================== ï¿½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½ ===================== */
 extern volatile uint8_t  imu_rx_buf[IMU_RX_BUF_SIZE];
 extern volatile bool     imu_rx_complete;
 
 extern volatile uint8_t  lora_rx_buf[LORA_RX_BUF_SIZE];
 extern volatile bool     lora_rx_complete;
 
-/* ===================== N10 À×´ï (SCI3 + DMAC4) ===================== */
-extern volatile uint8_t  n10_rx_buf[N10_RX_BUF_SIZE]; /* DMAC ½ÓÊÕÔ­Ê¼ 58 ×Ö½Ú */
-extern volatile bool     n10_rx_complete;              /* ÐÂÊý¾Ý¾ÍÐ÷±êÖ¾ */
-extern volatile int      n10_data[N10_DATA_NUM];       /* ½âÎöºóµÄ 18 ¸ö¾àÀëÖµ */
+/* ===================== N10 ï¿½×´ï¿½ (SCI3 + DMAC4) ===================== */
+extern volatile uint8_t  n10_rx_buf[N10_RX_BUF_SIZE]; /* DMAC ï¿½ï¿½ï¿½ï¿½Ô­Ê¼ 58 ï¿½Ö½ï¿½ */
+extern volatile bool     n10_rx_complete;              /* ï¿½ï¿½ï¿½ï¿½ï¿½Ý¾ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ */
+extern volatile int      n10_data[N10_DATA_NUM];       /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 18 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ */
 
-/* ===================== 4G ·¢ËÍ (SCI8£¬ÖÐ¶ÏÄ£Ê½) ===================== */
-extern volatile bool     uart8_tx_complete;            /* TX_COMPLETE ±êÖ¾ */
-void UART8_4G_Send(const char *str);                   /* ×èÈû·¢ËÍ×Ö·û´® */
+/* ===================== 4G ï¿½ï¿½ï¿½ï¿½ (SCI8ï¿½ï¿½ï¿½Ð¶ï¿½Ä£Ê½) ===================== */
+extern volatile bool     uart8_tx_complete;            /* TX_COMPLETE ï¿½ï¿½Ö¾ */
+void UART8_4G_Send(const char *str);                   /* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ */
 
-/* ===================== º¯ÊýÉùÃ÷ ===================== */
+/* ===================== ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ===================== */
 void UART5_IMU_Init(void);      /* IMU:    SCI5 + DMAC0 */
-void UART2_LoRa_Init(void);     /* LoRa:   SCI2 ÖÐ¶Ï½ÓÊÕ */
-void UART9_GPS_Init(void);      /* GPS:    SCI9 ÖÐ¶Ï½ÓÊÕ */
-void UART3_N10_Init(void);      /* À×´ï:   SCI3 + DMAC4 */
-void UART8_4G_Init(void);       /* 4G ·¢:  SCI8 ÖÐ¶Ï·¢ËÍ */
+void UART2_LoRa_Init(void);     /* LoRa:   SCI2 ï¿½Ð¶Ï½ï¿½ï¿½ï¿½ */
+void UART9_GPS_Init(void);      /* GPS:    SCI9 ï¿½Ð¶Ï½ï¿½ï¿½ï¿½ */
+void UART3_N10_Init(void);      /* ï¿½×´ï¿½:   SCI3 + DMAC4 */
+void UART8_4G_Init(void);       /* 4G ï¿½ï¿½:  SCI8 ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ */
 void DMAC_Init(void);           /* DMAC0 (IMU) */
-void DMAC4_N10_Init(void);      /* DMAC4 (À×´ï) */
+void DMAC4_N10_Init(void);      /* DMAC4 (ï¿½×´ï¿½) */
 void DMAC_Init(void);
 void DMAC4_N10_Init(void);
 void DMAC2_4G_Init(void);

@@ -4,10 +4,10 @@
 #include <string.h>
 
 /* =========================================================================
- *  全局控制变量
+ *  全局变量
  * ========================================================================= */
-float gyro, yaw;                /* IMU 解析值 */
-float pwm_l, pwm_r, pwm_turn;   /* PWM 计算结果 */
+float gyro, yaw;                /* IMU 原始数据 */
+float pwm_l, pwm_r, pwm_turn;   /* PWM 中间变量 */
 extern pid pid_gyro, pid_yaw;
 extern uint8_t v, move, move_flag;
 
@@ -18,17 +18,20 @@ extern bool   gps_valid;
 /* N10 雷达数据 */
 extern volatile int n10_data[N10_DATA_NUM];
 
+/* P500 1s 保持计数器 (在 uart.c lora_callback 中置 200) */
+extern volatile uint16_t p500_hold_count;
+
 /* =========================================================================
- *  4G 发送
+ *  4G 上传
  * ========================================================================= */
 volatile uint8_t gpt1_send = 0;  /* 0=空闲, 1=发雷达, 2=发GPS */
-static char json_buf[512];       /* JSON 格式化缓冲 */
+static char json_buf[512];       /* JSON 格式化缓冲区 */
 
 #define JSON_HEAD  "{\"id\":\"123\",\"version\":\"1.0\",\"params\":{"
 #define JSON_TAIL  "}}"
 
 /* =========================================================================
- *  GPT0 — 5ms PID 控制
+ *  GPT0 - 5ms PID 控制
  * ========================================================================= */
 
 void gpt0_init(void)
@@ -41,7 +44,20 @@ void gpt0_callback(timer_callback_args_t *p_args)
 {
     (void)p_args;
 
-    /* ---- 读取最新 IMU 数据 ---- */
+    /* ---- IO 输出控制 ---- */
+    /* P015: move_flag==1(摇杆模式) 输出高电平, move_flag==0(PID循线) 输出低电平 */
+    R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_00_PIN_15,
+                      (bsp_io_level_t)(move_flag ? BSP_IO_LEVEL_HIGH : BSP_IO_LEVEL_LOW));
+
+    /* P500: LoRa CMD_P500 触发后保持 1s (200 x 5ms) 高电平 */
+    if (p500_hold_count > 0)
+    {
+        R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_05_PIN_00, BSP_IO_LEVEL_HIGH);
+        p500_hold_count--;
+        if (p500_hold_count == 0)
+            R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_05_PIN_00, BSP_IO_LEVEL_LOW);
+    }
+
     if (imu_rx_complete)
     {
         int16_t gyro_raw = (int16_t)((imu_rx_buf[7] << 8) | imu_rx_buf[6]);
@@ -51,12 +67,12 @@ void gpt0_callback(timer_callback_args_t *p_args)
         imu_rx_complete = false;
     }
 
-    /* ---- PID 自稳 ---- */
+    /* ---- PID 计算 ---- */
     pwm_turn = pid_location(&pid_gyro, gyro);
 
     if (move_flag)
     {
-        /* 摇杆模式：速度 v + PID 转向 */
+        /* 摇杆模式: 基础速度 v + PID 转向 */
         pwm_l = 1000 * v;
         pwm_r = 1000 * v;
         switch (move)
@@ -71,13 +87,13 @@ void gpt0_callback(timer_callback_args_t *p_args)
     }
     else
     {
-        /* 纯自稳模式：仅 PID 修正，无前进速度 */
+        /* PID 循线模式: 陀螺仪 PID 差速转向前进 */
         pwm_setduty(-pwm_turn, pwm_turn);
     }
 }
 
 /* =========================================================================
- *  GPT1 — 1 秒定时上报 4G（交替发雷达和 GPS）
+ *  GPT1 - 1 秒定时器, 4G 上传调度 (GPS/N10)
  * ========================================================================= */
 
 void gpt1_init(void)
@@ -112,12 +128,12 @@ void send_gps(void)
     UART8_4G_Send(json_buf);
 }
 
-/** GPT1 溢出中断回调 — 前 28s 注网，之后雷达/GPS 按序发送 */
+/** GPT1 回调函数: 前 28s 注册等待, 之后雷达/GPS 轮流发送 */
 void gpt1_callback(timer_callback_args_t *p_args)
 {
     (void)p_args;
-    static uint8_t startup = 28;  /* 28 × 1s = 28s 启动延迟 */
-    static uint8_t tick = 0;      /* 0=发雷达, 1=发GPS, 2=等待 */
+    static uint8_t startup = 28;  /* 28 个 1s = 28s 启动等待 */
+    static uint8_t tick = 0;      /* 0=发雷达, 1=发GPS, 2=空闲 */
 
     if (startup)
     {
@@ -128,8 +144,8 @@ void gpt1_callback(timer_callback_args_t *p_args)
     if (tick == 0)
         gpt1_send = 2;   /* 发 GPS */
     else if (tick == 1)
-        gpt1_send = 1;   /* 发雷达（距 GPS 1s） */
-    /* tick == 2: 跳过，额外等 1s */
+        gpt1_send = 1;   /* 发雷达（距 GPS 1s 间隔） */
+    /* tick == 2: 空闲等待 1s */
 
     tick++;
     if (tick > 2) tick = 0;
