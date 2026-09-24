@@ -46,16 +46,16 @@ void gpt0_callback(timer_callback_args_t *p_args)
 
     /* ---- IO 输出控制 ---- */
     /* P015: move_flag==1(摇杆模式) 输出高电平, move_flag==0(PID循线) 输出低电平 */
-    R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_00_PIN_15,
+    R_IOPORT_PinWrite(&g_ioport_ctrl, BSP_IO_PORT_00_PIN_15,
                       (bsp_io_level_t)(move_flag ? BSP_IO_LEVEL_HIGH : BSP_IO_LEVEL_LOW));
 
     /* P500: LoRa CMD_P500 触发后保持 1s (200 x 5ms) 高电平 */
     if (p500_hold_count > 0)
     {
-        R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_05_PIN_00, BSP_IO_LEVEL_HIGH);
+        R_IOPORT_PinWrite(&g_ioport_ctrl, BSP_IO_PORT_05_PIN_00, BSP_IO_LEVEL_HIGH);
         p500_hold_count--;
         if (p500_hold_count == 0)
-            R_IOPORT_PinWrite(&g_ioport_ctrl, IOPORT_PORT_05_PIN_00, BSP_IO_LEVEL_LOW);
+            R_IOPORT_PinWrite(&g_ioport_ctrl, BSP_IO_PORT_05_PIN_00, BSP_IO_LEVEL_LOW);
     }
 
     if (imu_rx_complete)
@@ -113,7 +113,7 @@ void send_n10(void)
         p += sprintf(p, "%d", n10_data[i]);
         if (i < 17) p += sprintf(p, ",");
     }
-    sprintf(p, "]}" JSON_TAIL);
+		p += sprintf(p, "]}" JSON_TAIL);
     UART8_4G_Send(json_buf);
 }
 
@@ -128,11 +128,11 @@ void send_gps(void)
     UART8_4G_Send(json_buf);
 }
 
-/** GPT1 回调函数: 前 28s 注册等待, 之后雷达/GPS 轮流发送 */
+/** GPT1 回调函数: 前 10s 注册等待, 之后雷达/GPS 轮流发送 */
 void gpt1_callback(timer_callback_args_t *p_args)
 {
     (void)p_args;
-    static uint8_t startup = 28;  /* 28 个 1s = 28s 启动等待 */
+    static uint8_t startup = 10;  /* 10 个 1s = 10s 启动等待 */
     static uint8_t tick = 0;      /* 0=发雷达, 1=发GPS, 2=空闲 */
 
     if (startup)
@@ -143,10 +143,10 @@ void gpt1_callback(timer_callback_args_t *p_args)
 
     if (tick == 0)
         gpt1_send = 2;   /* 发 GPS */
-    else if (tick == 1)
+    else if (tick == 2)
         gpt1_send = 1;   /* 发雷达（距 GPS 1s 间隔） */
-    /* tick == 2: 空闲等待 1s */
+    /* tick == 3: 空闲等待 2s */
 
     tick++;
-    if (tick > 2) tick = 0;
+    if (tick > 4) tick = 0;
 }
