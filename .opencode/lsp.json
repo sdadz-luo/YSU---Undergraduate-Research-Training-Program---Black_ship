@@ -1,7 +1,0 @@
-﻿{
-  "lsp": {
-    "clangd": {
-      "extensions": [".c", ".cpp", ".h", ".hpp"]
-    }
-  }
-}
