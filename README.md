@@ -4,6 +4,17 @@
 Renesas RA6M5（Cortex-M33）裸机开发，实现 IMU 姿态解算、LoRa 遥控解析、
 GPS 定位、N10 毫米波雷达探测与 4G 数据回传。
 
+## 项目组成
+
+燕山大学大创「无人船」项目由上位机遥控双船协同作业，共三个仓库：
+
+- **Black_ship**（本仓库）—— 黑船固件：双模式运动控制、毫米波雷达与 4G 回传
+- [White_ship][white-ship] —— 白船固件：水质、温湿度等多传感器采集与 4G 回传
+- [Host-Computer][host-computer] —— 上位机：串口屏与双摇杆指令，经 LoRa 转发双船
+
+[white-ship]: https://github.com/sdadz-luo/YSU---Undergraduate-Research-Training-Program---White_ship
+[host-computer]: https://github.com/sdadz-luo/YSU---Undergraduate-Research-Training-Program---Unmanned-Ship---Host-Computer
+
 ## 硬件平台
 
 | 组件 | 接口 | 用途 |
@@ -97,13 +108,3 @@ CRC8 多项式 `0x31`，初值 `0x00`。
 - Keil MDK-ARM V5.43 + ARMClang V6.24
 - Renesas FSP v6.4.0
 - C 标准 C17
-
-## 相关仓库
-
-同一无人船项目的其他工程：
-
-- [Host-Computer][host-computer] — 基于串口屏的遥控上位机
-- [White_ship][white-ship] — 白船工程，多传感器采集
-
-[host-computer]: https://github.com/sdadz-luo/YSU---Undergraduate-Research-Training-Program---Unmanned-Ship---Host-Computer
-[white-ship]: https://github.com/sdadz-luo/YSU---Undergraduate-Research-Training-Program---White_ship
